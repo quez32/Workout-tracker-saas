@@ -1,0 +1,17 @@
+{
+  "name": "workout-tracker-saas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Workout tracking SaaS with AI-adaptive workout plans",
+  "scripts": {
+    "backend:dev": "cd backend && bun run dev",
+    "backend:build": "cd backend && bun run build",
+    "backend:start": "cd backend && bun run start",
+    "backend:migrate": "cd backend && bun run migrate",
+    "dev": "bun run backend:dev",
+    "build": "bun run backend:build",
+    "start": "bun run backend:start"
+  },
+  "keywords": ["workout", "fitness", "saas", "tracking"],
+  "license": "MIT"
+}
