@@ -156,6 +156,75 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 });
 
 // ============================================
+// POST /api/workouts/:id/exercises — Add an exercise to a workout
+// ============================================
+router.post('/:id/exercises', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const schema = z.object({
+      exercise_id: z.string(),
+      notes: z.string().max(500).optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        data: parsed.error.flatten().fieldErrors,
+      } satisfies ApiResponse);
+      return;
+    }
+
+    // Verify workout ownership
+    const existing = await queryOne<Workout>(
+      'SELECT id FROM workouts WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user!.userId]
+    );
+
+    if (!existing) {
+      res.status(404).json({
+        success: false,
+        error: 'Workout not found.',
+      } satisfies ApiResponse);
+      return;
+    }
+
+    // Get the next order_index
+    const maxOrder = await queryOne<{ max_idx: number | null }>(
+      'SELECT MAX(order_index) as max_idx FROM workout_exercises WHERE workout_id = ?',
+      [req.params.id]
+    );
+
+    const orderIndex = (maxOrder?.max_idx ?? -1) + 1;
+
+    await query(
+      'INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)',
+      [req.params.id, parsed.data.exercise_id, orderIndex, parsed.data.notes || null]
+    );
+
+    const we = await queryOne(
+      `SELECT we.id, we.workout_id, we.exercise_id, e.name as exercise_name, e.muscle_group, we.order_index, we.notes
+       FROM workout_exercises we
+       JOIN exercises e ON e.id = we.exercise_id
+       WHERE we.workout_id = ? AND we.exercise_id = ?`,
+      [req.params.id, parsed.data.exercise_id]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: { workoutExercise: we },
+      message: 'Exercise added to workout!',
+    } satisfies ApiResponse);
+  } catch (error) {
+    console.error('Add exercise to workout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add exercise.',
+    } satisfies ApiResponse);
+  }
+});
+
+// ============================================
 // PUT /api/workouts/:id — Update a workout
 // ============================================
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
